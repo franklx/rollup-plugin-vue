@@ -41,6 +41,8 @@ export interface Options {
   // rollup plugins
   preprocessStyles?: boolean
 
+  processStyleTags?: boolean
+
   // sfc template options
   templatePreprocessOptions?: Record<
     string,
@@ -63,6 +65,7 @@ const defaultOptions: Options = {
   exclude: [],
   target: 'browser',
   exposeFilename: false,
+  processStyleTags: false,
   customBlocks: [],
 }
 
@@ -194,7 +197,7 @@ export default function PluginVue(userOptions: Partial<Options> = {}): Plugin {
             code: result.code,
             map: normalizeSourceMap(result.map!),
           }
-        } else if (query.type === 'style') {
+        } else if (processStyleTags && query.type === 'style') {
           debug(`transform(${id})`)
           const block = descriptor.styles[query.index]!
 

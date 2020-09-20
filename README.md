@@ -31,6 +31,11 @@ export interface Options {
   // rollup plugins
   // defaults to false.
   preprocessStyles?: boolean
+
+  // workaround for broken style tag processing: skip and use external plugin.
+  // defaults to false.
+  processStyleTags: boolean
+
   cssModulesOptions?: {
     // https://github.com/css-modules/postcss-modules#usage
   }
