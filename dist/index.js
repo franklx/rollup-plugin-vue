@@ -1,3 +1,10 @@
+'use strict'
+var __importDefault =
+  (this && this.__importDefault) ||
+  function (mod) {
+    return mod && mod.__esModule ? mod : { default: mod }
+  }
+Object.defineProperty(exports, '__esModule', { value: true })
 try {
   require.resolve('@vue/compiler-sfc')
 } catch (e) {
@@ -6,61 +13,15 @@ try {
       'tree.'
   )
 }
-
-import {
-  CompilerError,
-  compileStyleAsync,
-  compileTemplate,
-  parse,
-  compileScript,
-  SFCBlock,
-  SFCDescriptor,
-  SFCTemplateCompileOptions,
-  SFCTemplateCompileResults,
-  SFCAsyncStyleCompileOptions,
-} from '@vue/compiler-sfc'
-import fs from 'fs'
-import createDebugger from 'debug'
-import hash from 'hash-sum'
-import { basename, relative } from 'path'
-import qs from 'querystring'
-import { Plugin, RollupError } from 'rollup'
-import { createFilter } from 'rollup-pluginutils'
-
-const debug = createDebugger('rollup-plugin-vue')
-
-export interface Options {
-  include: string | RegExp | (string | RegExp)[]
-  exclude: string | RegExp | (string | RegExp)[]
-  target: 'node' | 'browser'
-  exposeFilename: boolean
-
-  customBlocks?: string[]
-
-  // if true, handle preprocessors directly instead of delegating to other
-  // rollup plugins
-  preprocessStyles?: boolean
-
-  processStyleTags?: boolean
-
-  // sfc template options
-  templatePreprocessOptions?: Record<
-    string,
-    SFCTemplateCompileOptions['preprocessOptions']
-  >
-  compiler?: SFCTemplateCompileOptions['compiler']
-  compilerOptions?: SFCTemplateCompileOptions['compilerOptions']
-  transformAssetUrls?: SFCTemplateCompileOptions['transformAssetUrls']
-
-  // sfc style options
-  postcssOptions?: SFCAsyncStyleCompileOptions['postcssOptions']
-  postcssPlugins?: SFCAsyncStyleCompileOptions['postcssPlugins']
-  cssModulesOptions?: SFCAsyncStyleCompileOptions['modulesOptions']
-  preprocessCustomRequire?: SFCAsyncStyleCompileOptions['preprocessCustomRequire']
-  preprocessOptions?: SFCAsyncStyleCompileOptions['preprocessOptions']
-}
-
-const defaultOptions: Options = {
+const compiler_sfc_1 = require('@vue/compiler-sfc')
+const fs_1 = __importDefault(require('fs'))
+const debug_1 = __importDefault(require('debug'))
+const hash_sum_1 = __importDefault(require('hash-sum'))
+const path_1 = require('path')
+const querystring_1 = __importDefault(require('querystring'))
+const rollup_pluginutils_1 = require('rollup-pluginutils')
+const debug = debug_1.default('rollup-plugin-vue')
+const defaultOptions = {
   include: /\.vue$/,
   exclude: [],
   target: 'browser',
@@ -68,33 +29,31 @@ const defaultOptions: Options = {
   processStyleTags: false,
   customBlocks: [],
 }
-
-export default function PluginVue(userOptions: Partial<Options> = {}): Plugin {
-  const options: Options = {
+function PluginVue(userOptions = {}) {
+  const options = {
     ...defaultOptions,
     ...userOptions,
   }
-
   const isServer = options.target === 'node'
   const isProduction =
     process.env.NODE_ENV === 'production' || process.env.BUILD === 'production'
   const rootContext = process.cwd()
-
-  const filter = createFilter(options.include, options.exclude)
+  const filter = rollup_pluginutils_1.createFilter(
+    options.include,
+    options.exclude
+  )
   const filterCustomBlock = createCustomBlockFilter(options.customBlocks)
-
   return {
     name: 'vue',
     async resolveId(id, importer) {
       const query = parseVuePartRequest(id)
-
       if (query.vue) {
         if (query.src) {
           const resolved = await this.resolve(query.filename, importer, {
             skipSelf: true,
           })
           if (resolved) {
-            cache.set(resolved.id, getDescriptor(importer!))
+            cache.set(resolved.id, getDescriptor(importer))
             const [, originalQuery] = id.split('?', 2)
             resolved.id += `?${originalQuery}`
             return resolved
@@ -107,26 +66,24 @@ export default function PluginVue(userOptions: Partial<Options> = {}): Plugin {
       }
       return undefined
     },
-
     load(id) {
       const query = parseVuePartRequest(id)
       if (query.vue) {
         if (query.src) {
-          return fs.readFileSync(query.filename, 'utf-8')
+          return fs_1.default.readFileSync(query.filename, 'utf-8')
         }
         const descriptor = getDescriptor(query.filename)
         if (descriptor) {
           const block =
             query.type === 'template'
-              ? descriptor.template!
+              ? descriptor.template
               : query.type === 'script'
-              ? descriptor.script!
+              ? descriptor.script
               : query.type === 'style'
               ? descriptor.styles[query.index]
               : typeof query.index === 'number'
               ? descriptor.customBlocks[query.index]
               : null
-
           if (block) {
             return {
               code: block.content,
@@ -135,26 +92,23 @@ export default function PluginVue(userOptions: Partial<Options> = {}): Plugin {
           }
         }
       }
-
       return undefined
     },
-
     async transform(code, id) {
       const query = parseVuePartRequest(id)
       if (query.vue) {
         if (!query.src && !filter(query.filename)) return null
-
         const descriptor = getDescriptor(query.filename)
         const hasScoped = descriptor.styles.some((s) => s.scoped)
         if (query.type === 'template') {
           debug(`transform(${id})`)
-          const block = descriptor.template!
+          const block = descriptor.template
           const preprocessLang = block.lang
           const preprocessOptions =
             preprocessLang &&
             options.templatePreprocessOptions &&
             options.templatePreprocessOptions[preprocessLang]
-          const result = compileTemplate({
+          const result = compiler_sfc_1.compileTemplate({
             filename: query.filename,
             source: code,
             inMap: query.src ? undefined : block.map,
@@ -172,7 +126,6 @@ export default function PluginVue(userOptions: Partial<Options> = {}): Plugin {
             },
             transformAssetUrls: options.transformAssetUrls,
           })
-
           if (result.errors.length) {
             result.errors.forEach((error) =>
               this.error(
@@ -183,7 +136,6 @@ export default function PluginVue(userOptions: Partial<Options> = {}): Plugin {
             )
             return null
           }
-
           if (result.tips.length) {
             result.tips.forEach((tip) =>
               this.warn({
@@ -192,20 +144,17 @@ export default function PluginVue(userOptions: Partial<Options> = {}): Plugin {
               })
             )
           }
-
           return {
             code: result.code,
-            map: normalizeSourceMap(result.map!),
+            map: normalizeSourceMap(result.map),
           }
         } else if (options.processStyleTags && query.type === 'style') {
           debug(`transform(${id})`)
-          const block = descriptor.styles[query.index]!
-
+          const block = descriptor.styles[query.index]
           let preprocessOptions = options.preprocessOptions || {}
-          const preprocessLang = (options.preprocessStyles
+          const preprocessLang = options.preprocessStyles
             ? block.lang
-            : undefined) as SFCAsyncStyleCompileOptions['preprocessLang']
-
+            : undefined
           if (preprocessLang) {
             preprocessOptions =
               preprocessOptions[preprocessLang] || preprocessOptions
@@ -228,10 +177,9 @@ export default function PluginVue(userOptions: Partial<Options> = {}): Plugin {
           } else {
             preprocessOptions = {}
           }
-
-          const result = await compileStyleAsync({
+          const result = await compiler_sfc_1.compileStyleAsync({
             filename: query.filename,
-            id: `data-v-${query.id!}`,
+            id: `data-v-${query.id}`,
             source: code,
             scoped: block.scoped,
             vars: !!block.vars,
@@ -243,7 +191,6 @@ export default function PluginVue(userOptions: Partial<Options> = {}): Plugin {
             preprocessCustomRequire: options.preprocessCustomRequire,
             preprocessOptions,
           })
-
           if (result.errors.length) {
             result.errors.forEach((error) =>
               this.error({
@@ -253,7 +200,6 @@ export default function PluginVue(userOptions: Partial<Options> = {}): Plugin {
             )
             return null
           }
-
           if (query.module) {
             return {
               code: `export default ${_(result.modules)}`,
@@ -262,7 +208,7 @@ export default function PluginVue(userOptions: Partial<Options> = {}): Plugin {
           } else {
             return {
               code: result.code,
-              map: normalizeSourceMap(result.map!),
+              map: normalizeSourceMap(result.map),
             }
           }
         }
@@ -270,12 +216,10 @@ export default function PluginVue(userOptions: Partial<Options> = {}): Plugin {
       } else if (filter(id)) {
         debug(`transform(${id})`)
         const { descriptor, errors } = parseSFC(code, id, rootContext)
-
         if (errors.length) {
           errors.forEach((error) => this.error(createRollupError(id, error)))
           return null
         }
-
         // module id for scoped CSS & hot-reload
         const output = transformVueSFC(
           code,
@@ -285,7 +229,6 @@ export default function PluginVue(userOptions: Partial<Options> = {}): Plugin {
           options
         )
         debug('transient .vue file:', '\n' + output + '\n')
-
         return {
           code: output,
           map: {
@@ -298,12 +241,9 @@ export default function PluginVue(userOptions: Partial<Options> = {}): Plugin {
     },
   }
 }
-
-function createCustomBlockFilter(
-  queries?: string[]
-): (type: string) => boolean {
+exports.default = PluginVue
+function createCustomBlockFilter(queries) {
   if (!queries || queries.length === 0) return () => false
-
   const allowed = new Set(queries.filter((query) => /^[a-z]/i.test(query)))
   const disallowed = new Set(
     queries
@@ -311,58 +251,16 @@ function createCustomBlockFilter(
       .map((query) => query.substr(1))
   )
   const allowAll = queries.includes('*') || !queries.includes('!*')
-
-  return (type: string) => {
+  return (type) => {
     if (allowed.has(type)) return true
     if (disallowed.has(type)) return true
-
     return allowAll
   }
 }
-
-type Query =
-  | {
-      filename: string
-      vue: false
-    }
-  | {
-      filename: string
-      vue: true
-      type: 'script'
-      src?: true
-    }
-  | {
-      filename: string
-      vue: true
-      type: 'template'
-      id?: string
-      src?: true
-    }
-  | {
-      filename: string
-      vue: true
-      type: 'style'
-      index: number
-      id?: string
-      scoped?: boolean
-      module?: string | boolean
-      src?: true
-    }
-  | {
-      filename: string
-      vue: true
-      type: 'custom'
-      index: number
-      src?: true
-    }
-
-function parseVuePartRequest(id: string): Query {
+function parseVuePartRequest(id) {
   const [filename, query] = id.split('?', 2)
-
   if (!query) return { vue: false, filename }
-
-  const raw = qs.parse(query)
-
+  const raw = querystring_1.default.parse(query)
   if ('vue' in raw) {
     return {
       ...raw,
@@ -371,24 +269,19 @@ function parseVuePartRequest(id: string): Query {
       index: Number(raw.index),
       src: 'src' in raw,
       scoped: 'scoped' in raw,
-    } as any
+    }
   }
-
   return { vue: false, filename }
 }
-
-const cache = new Map<string, SFCDescriptor>()
-
-function getDescriptor(id: string) {
+const cache = new Map()
+function getDescriptor(id) {
   if (cache.has(id)) {
-    return cache.get(id)!
+    return cache.get(id)
   }
-
   throw new Error(`${id} is not parsed yet`)
 }
-
-function parseSFC(code: string, id: string, sourceRoot: string) {
-  const { descriptor, errors } = parse(code, {
+function parseSFC(code, id, sourceRoot) {
+  const { descriptor, errors } = compiler_sfc_1.parse(code, {
     sourceMap: true,
     filename: id,
     sourceRoot: sourceRoot,
@@ -396,28 +289,20 @@ function parseSFC(code: string, id: string, sourceRoot: string) {
   cache.set(id, descriptor)
   return { descriptor, errors: errors }
 }
-
 function transformVueSFC(
-  code: string,
-  resourcePath: string,
-  descriptor: SFCDescriptor,
-  {
-    rootContext,
-    isProduction,
-    isServer,
-    filterCustomBlock,
-  }: {
-    rootContext: string
-    isProduction: boolean
-    isServer: boolean
-    filterCustomBlock: (type: string) => boolean
-  },
-  options: Options
+  code,
+  resourcePath,
+  descriptor,
+  { rootContext, isProduction, isServer, filterCustomBlock },
+  options
 ) {
-  const shortFilePath = relative(rootContext, resourcePath)
+  const shortFilePath = path_1
+    .relative(rootContext, resourcePath)
     .replace(/^(\.\.[\/\\])+/, '')
     .replace(/\\/g, '/')
-  const id = hash(isProduction ? shortFilePath + '\n' + code : shortFilePath)
+  const id = hash_sum_1.default(
+    isProduction ? shortFilePath + '\n' + code : shortFilePath
+  )
   // feature information
   const hasScoped = descriptor.styles.some((s) => s.scoped)
   const templateImport = getTemplateCode(
@@ -452,19 +337,12 @@ function transformVueSFC(
   if (!isProduction) {
     output.push(`script.__file = ${_(shortFilePath)}`)
   } else if (options.exposeFilename) {
-    output.push(`script.__file = ${_(basename(shortFilePath))}`)
+    output.push(`script.__file = ${_(path_1.basename(shortFilePath))}`)
   }
   output.push('export default script')
   return output.join('\n')
 }
-
-function getTemplateCode(
-  descriptor: SFCDescriptor,
-  resourcePath: string,
-  id: string,
-  hasScoped: boolean,
-  isServer: boolean
-) {
+function getTemplateCode(descriptor, resourcePath, id, hasScoped, isServer) {
   let templateImport = `const render = () => {}`
   let templateRequest
   if (descriptor.template) {
@@ -479,15 +357,13 @@ function getTemplateCode(
       isServer ? 'ssrRender' : 'render'
     } } from ${templateRequest}`
   }
-
   return templateImport
 }
-
-function getScriptCode(descriptor: SFCDescriptor, resourcePath: string) {
+function getScriptCode(descriptor, resourcePath) {
   let scriptImport = `const script = {}`
   if (descriptor.script || descriptor.scriptSetup) {
-    if (compileScript) {
-      descriptor.script = compileScript(descriptor)
+    if (compiler_sfc_1.compileScript) {
+      descriptor.script = compiler_sfc_1.compileScript(descriptor)
     }
     if (descriptor.script) {
       const src = descriptor.script.src || resourcePath
@@ -502,13 +378,7 @@ function getScriptCode(descriptor: SFCDescriptor, resourcePath: string) {
   }
   return scriptImport
 }
-
-function getStyleCode(
-  descriptor: SFCDescriptor,
-  resourcePath: string,
-  id: string,
-  preprocessStyles?: boolean
-) {
+function getStyleCode(descriptor, resourcePath, id, preprocessStyles) {
   let stylesCode = ``
   let hasCSSModules = false
   if (descriptor.styles.length) {
@@ -548,14 +418,8 @@ function getStyleCode(
   }
   return stylesCode
 }
-
-function getCustomBlock(
-  descriptor: SFCDescriptor,
-  resourcePath: string,
-  filter: (type: string) => boolean
-) {
+function getCustomBlock(descriptor, resourcePath, filter) {
   let code = ''
-
   descriptor.customBlocks.forEach((block, index) => {
     if (filter(block.type)) {
       const src = block.src || resourcePath
@@ -567,21 +431,16 @@ function getCustomBlock(
       code += `if (typeof block${index} === 'function') block${index}(script)\n`
     }
   })
-
   return code
 }
-
-function createRollupError(
-  id: string,
-  error: CompilerError | SyntaxError
-): RollupError {
+function createRollupError(id, error) {
   if ('code' in error) {
     return {
       id,
       plugin: 'vue',
       pluginCode: String(error.code),
       message: error.message,
-      frame: error.loc!.source,
+      frame: error.loc.source,
       parserError: error,
       loc: error.loc
         ? {
@@ -600,22 +459,16 @@ function createRollupError(
     }
   }
 }
-
 // these are built-in query parameters so should be ignored
 // if the user happen to add them as attrs
 const ignoreList = ['id', 'index', 'src', 'type', 'lang']
-
-function attrsToQuery(
-  attrs: SFCBlock['attrs'],
-  langFallback?: string,
-  forceLangFallback = false
-): string {
+function attrsToQuery(attrs, langFallback, forceLangFallback = false) {
   let query = ``
   for (const name in attrs) {
     const value = attrs[name]
     if (!ignoreList.includes(name)) {
-      query += `&${qs.escape(name)}${
-        value ? `=${qs.escape(String(value))}` : ``
+      query += `&${querystring_1.default.escape(name)}${
+        value ? `=${querystring_1.default.escape(String(value))}` : ``
       }`
     }
   }
@@ -629,41 +482,35 @@ function attrsToQuery(
   }
   return query
 }
-
-function _(any: any) {
+function _(any) {
   return JSON.stringify(any)
 }
-
-function normalizeSourceMap(map: SFCTemplateCompileResults['map']): any {
-  if (!map) return null as any
-
+function normalizeSourceMap(map) {
+  if (!map) return null
   return {
     ...map,
     version: Number(map.version),
     mappings: typeof map.mappings === 'string' ? map.mappings : '',
   }
 }
-
 function genCSSModulesCode(
   // @ts-ignore
-  id: string,
-  index: number,
-  request: string,
-  requestWithoutModule: string,
-  moduleName: string | boolean
-): string {
+  id,
+  index,
+  request,
+  requestWithoutModule,
+  moduleName
+) {
   const styleVar = `style${index}`
   let code =
     // first import the CSS for extraction
     `\nimport ${_(requestWithoutModule)}` +
     // then import the json file to expose to component...
     `\nimport ${styleVar} from ${_(request + '.js')}`
-
   // inject variable
   const name = typeof moduleName === 'string' ? moduleName : '$style'
   code += `\ncssModules["${name}"] = ${styleVar}`
   return code
 }
-
 // overwrite for cjs require('rollup-plugin-vue')() usage
 module.exports = PluginVue
