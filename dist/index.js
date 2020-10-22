@@ -87,7 +87,7 @@ function PluginVue(userOptions = {}) {
           if (block) {
             return {
               code: block.content,
-              map: normalizeSourceMap(block.map),
+              map: normalizeSourceMap(block.map, id),
             }
           }
         }
@@ -100,6 +100,9 @@ function PluginVue(userOptions = {}) {
         if (!query.src && !filter(query.filename)) return null
         const descriptor = getDescriptor(query.filename)
         const hasScoped = descriptor.styles.some((s) => s.scoped)
+        if (query.src) {
+          this.addWatchFile(query.filename)
+        }
         if (query.type === 'template') {
           debug(`transform(${id})`)
           const block = descriptor.template
@@ -146,7 +149,7 @@ function PluginVue(userOptions = {}) {
           }
           return {
             code: result.code,
-            map: normalizeSourceMap(result.map),
+            map: normalizeSourceMap(result.map, id),
           }
         } else if (options.processStyleTags && query.type === 'style') {
           debug(`transform(${id})`)
@@ -208,7 +211,7 @@ function PluginVue(userOptions = {}) {
           } else {
             return {
               code: result.code,
-              map: normalizeSourceMap(result.map),
+              map: normalizeSourceMap(result.map, id),
             }
           }
         }
@@ -344,7 +347,8 @@ function transformVueSFC(
   return output.join('\n')
 }
 function getTemplateCode(descriptor, resourcePath, id, hasScoped, isServer) {
-  let templateImport = `const render = () => {}`
+  const renderFnName = isServer ? 'ssrRender' : 'render'
+  let templateImport = `const ${renderFnName} = () => {}`
   let templateRequest
   if (descriptor.template) {
     const src = descriptor.template.src || resourcePath
@@ -354,9 +358,7 @@ function getTemplateCode(descriptor, resourcePath, id, hasScoped, isServer) {
     const attrsQuery = attrsToQuery(descriptor.template.attrs)
     const query = `?vue&type=template${idQuery}${srcQuery}${scopedQuery}${attrsQuery}`
     templateRequest = _(src + query)
-    templateImport = `import { ${
-      isServer ? 'ssrRender' : 'render'
-    } } from ${templateRequest}`
+    templateImport = `import { ${renderFnName} } from ${templateRequest}`
   }
   return templateImport
 }
@@ -486,8 +488,12 @@ function attrsToQuery(attrs, langFallback, forceLangFallback = false) {
 function _(any) {
   return JSON.stringify(any)
 }
-function normalizeSourceMap(map) {
+function normalizeSourceMap(map, id) {
   if (!map) return null
+  if (!id.includes('type=script')) {
+    map.file = id
+    map.sources[0] = id
+  }
   return {
     ...map,
     version: Number(map.version),
