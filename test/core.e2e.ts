@@ -56,9 +56,9 @@ describe('css-modules', () => {
     expect(result.output[0].code).not.toEqual(
       expect.stringContaining('.red {\n  color: red;\n}')
     )
-    expect(result.output[0].code).toEqual(expect.stringContaining('._red_'))
+    expect(result.output[0].code).toEqual(expect.stringContaining('.red___'))
     expect(result.output[0].code).toEqual(
-      expect.stringContaining('{"red":"_red_')
+      expect.stringContaining('{"red":"red___')
     )
   })
 
@@ -67,10 +67,27 @@ describe('css-modules', () => {
       expect.stringContaining('.__scopeId = "data-v-')
     )
     expect(result.output[0].code).not.toEqual(
-      expect.stringContaining('.green {\n  color: red;\n}')
+      expect.stringContaining('.green {\n  color: green;\n}')
     )
     expect(result.output[0].code).toEqual(
       expect.stringContaining('.green[data-v-')
+    )
+  })
+})
+
+describe('typescript', () => {
+  let result!: RollupOutput
+
+  beforeAll(async () => {
+    result = await roll('typescript')
+  })
+
+  it('should compile <script lang="ts">', () => {
+    expect(result.output[0].code).toEqual(
+      expect.stringContaining("name: 'App'")
+    )
+    expect(result.output[0].code).toEqual(
+      expect.stringContaining("title: 'Bar'")
     )
   })
 })
